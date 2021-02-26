@@ -2,40 +2,79 @@
 using System.Reflection;
 using System.Globalization;
 
-namespace testApp {
-    class Program {
-        static void Main(string[] args) {
+namespace testApp
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
             bool usingNls = true;
             Type globalizationMode = Type.GetType("System.Globalization.GlobalizationMode");
-            if (globalizationMode != null) {
+            if (globalizationMode != null)
+            {
                 MethodInfo methodInfo = globalizationMode.GetProperty("UseNls", BindingFlags.NonPublic | BindingFlags.Static)?.GetMethod;
-                if (methodInfo != null) {
+                if (methodInfo != null)
+                {
                     usingNls = (bool)methodInfo.Invoke(null, null);
-                } else {
+                }
+                else
+                {
                     Console.WriteLine("Failed to get methodInfo.");
                     return;
                 }
-            } else {
+            }
+            else
+            {
                 Console.WriteLine("Failed to get globalizationMode.");
                 return;
             }
 
             Console.WriteLine("Using NLS: " + usingNls);
+
+            if (!usingNls)
+            {
+                int icuVersion = 0;
+                try
+                {
+                    Type interopGlobalization = Type.GetType("Interop+Globalization", throwOnError: true);
+                    if (interopGlobalization != null)
+                    {
+                        MethodInfo methodInfo = interopGlobalization.GetMethod("GetICUVersion", BindingFlags.NonPublic | BindingFlags.Static);
+                        if (methodInfo != null)
+                        {
+                            icuVersion = (int)methodInfo.Invoke(null, null);
+                        }
+                    }
+                }
+                catch
+                {
+                    Console.WriteLine("Failed to get ICU Version.");
+                    return;
+                }
+
+                Version ver = new Version(icuVersion >> 24, (icuVersion >> 16) & 0xFF, (icuVersion >> 8) & 0xFF, icuVersion & 0xFF);
+                Console.WriteLine("ICU Version: " + ver);
+            }
+
             Console.WriteLine("CultureInfo.CurrentCulture: " + CultureInfo.CurrentCulture.ToString());
 
-            // Both MS-ICU and NLS don't have en-ID.
-            //string testLocale = "garbage-tag";
-            string testLocale = "zh-TW";
+            string queryLocale = CultureInfo.CurrentCulture.ToString();
+
+            if (args.Length == 1)
+            {
+                queryLocale = args[0];
+            }
+
             Console.WriteLine();
-            Console.WriteLine("Outputting info on: " + testLocale);
-            var testCulture = new CultureInfo(testLocale);
+            Console.WriteLine("Outputting info on: " + queryLocale);
+            var testCulture = new CultureInfo(queryLocale);
 
             Console.WriteLine();
             Console.WriteLine("{0,-31}{1,-47}", "PROPERTY", "LOCALE");
             Console.WriteLine("{0,-31}{1,-47}", "Name", testCulture.Name);
             Console.WriteLine("{0,-31}{1,-47}", "Parent", testCulture.Parent);
-            Console.WriteLine("{0,-31}{1,-47}", "IetfLanguageTag ", testCulture.IetfLanguageTag );
-            
+            Console.WriteLine("{0,-31}{1,-47}", "IetfLanguageTag ", testCulture.IetfLanguageTag);
+
             Console.WriteLine("{0,-31}{1,-47}", "DisplayName", testCulture.DisplayName);
             Console.WriteLine("{0,-31}{1,-47}", "EnglishName", testCulture.EnglishName);
             Console.WriteLine("{0,-31}{1,-47}", "NativeName", testCulture.NativeName);
@@ -58,9 +97,11 @@ namespace testApp {
             PropertyInfo[] props = testCulture.DateTimeFormat.GetType().GetProperties();
             DateTime value = new DateTime(2012, 5, 28, 11, 35, 0);
 
-            foreach (var prop in props) {
+            foreach (var prop in props)
+            {
                 // Is this a format pattern-related property?
-                if (prop.Name.Contains("Pattern")) {
+                if (prop.Name.Contains("Pattern"))
+                {
                     string fmt = prop.GetValue(testCulture.DateTimeFormat, null).ToString();
                     Console.WriteLine("{0,-33} {1,-36} Example: {3}", prop.Name, fmt, "", value.ToString(fmt));
                 }
